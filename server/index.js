@@ -106,6 +106,10 @@ function initDB() {
       reason TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )`);
+
+    // Migrations — ignored silently if columns already exist
+    db.run(`ALTER TABLE reservations ADD COLUMN drinks_order TEXT`, () => {});
+    db.run(`ALTER TABLE reservations ADD COLUMN guest_email TEXT`, () => {});
   });
 }
 
@@ -152,14 +156,31 @@ const verifyToken = (req, res, next) => {
 
 app.post('/api/reservations', async (req, res) => {
   try {
-    const { userId, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, paymentCode, notes } = req.body;
-    const result = await dbRun(
-      `INSERT INTO reservations 
-       (user_id, service_type, service_name, start_time, end_time, duration_hours, total_price, payment_code, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [userId || null, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, paymentCode, notes]
+    const { userId, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder, guestEmail, notes } = req.body;
+
+    // Conflict check — reject if another pending/confirmed reservation overlaps
+    const conflicts = await dbAll(
+      `SELECT id FROM reservations
+       WHERE status IN ('pending', 'confirmed')
+       AND start_time < ? AND end_time > ?`,
+      [endTime, startTime]
     );
-    res.json({ id: result.id, paymentCode });
+    if (conflicts.length > 0) {
+      return res.status(409).json({ error: 'Este horario ya está reservado. Por favor elegí otro turno.' });
+    }
+
+    const result = await dbRun(
+      `INSERT INTO reservations
+       (user_id, service_type, service_name, start_time, end_time, duration_hours, total_price, drinks_order, guest_email, notes, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [userId || null, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder || null, guestEmail || null, notes || null]
+    );
+
+    // Sequential code: ENV-YYYY-NNNN
+    const code = `ENV-${new Date().getFullYear()}-${String(result.id).padStart(4, '0')}`;
+    await dbRun('UPDATE reservations SET payment_code = ? WHERE id = ?', [code, result.id]);
+
+    res.json({ id: result.id, paymentCode: code });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -191,17 +212,36 @@ app.get('/api/admin/reservations', async (req, res) => {
 app.get('/api/available-slots', async (req, res) => {
   try {
     const { date } = req.query;
-    const dayOfWeek = new Date(date).getDay();
+    // Use noon to avoid timezone day-shift issues
+    const dayOfWeek = new Date(date + 'T12:00:00').getDay();
+    if (dayOfWeek === 0) return res.json([]); // Sunday closed
     const isSaturday = dayOfWeek === 6;
     const startHour = isSaturday ? 10 : 17;
     const endHour = isSaturday ? 20 : 22;
-    
+
+    // Fetch existing bookings and blocked slots for this date
+    const [booked, blocked] = await Promise.all([
+      dbAll(
+        `SELECT start_time, end_time FROM reservations
+         WHERE date(start_time) = ? AND status IN ('pending', 'confirmed')`,
+        [date]
+      ),
+      dbAll(
+        `SELECT start_time, end_time FROM blocked_slots
+         WHERE date(start_time) = ?`,
+        [date]
+      ),
+    ]);
+    const occupied = [...booked, ...blocked];
+
     const slots = [];
     for (let hour = startHour; hour < endHour; hour++) {
-      const time = `${date}T${hour.toString().padStart(2, '0')}:00:00`;
-      slots.push({ time, available: true });
+      const time = `${date}T${String(hour).padStart(2, '0')}:00:00`;
+      const slotEnd = `${date}T${String(hour + 1).padStart(2, '0')}:00:00`;
+      const isOccupied = occupied.some(b => b.start_time < slotEnd && b.end_time > time);
+      slots.push({ time, available: !isOccupied });
     }
-    
+
     res.json(slots);
   } catch (err) {
     res.status(400).json({ error: err.message });

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-const genCode = () => 'ENV' + Math.random().toString(36).slice(2, 8).toUpperCase();
+const DRINK_OPTIONS = ['Nada', 'Agua', 'Gaseosa', 'Cerveza', 'Energizante'];
 
 function Calendar({ selected, onSelect }) {
   const today = new Date();
@@ -173,7 +173,7 @@ export default function Reservations() {
   const [selectedOption, setSelectedOption] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [form, setForm] = useState({ name: user?.name || '', phone: '', email: user?.email || '', notes: '' });
+  const [form, setForm] = useState({ name: user?.name || '', phone: '', email: user?.email || '', drink: 'Nada', notes: '' });
   const [booking, setBooking] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -197,9 +197,10 @@ export default function Reservations() {
 
   const submit = async () => {
     if (!form.name || !form.phone) return setError('Completá nombre y teléfono');
+    if (!form.email) return setError('El email es requerido');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) return setError('Ingresá un email válido');
     setError('');
     setSubmitting(true);
-    const code = genCode();
     try {
       const payload = {
         userId: user?.id || null,
@@ -209,14 +210,15 @@ export default function Reservations() {
         endTime: endTime(selectedTime, selectedOption.hours || 1),
         durationHours: selectedOption.hours || 1,
         totalPrice: selectedOption.price,
-        paymentCode: code,
-        notes: `${form.name} | ${form.phone} | ${form.email}${form.notes ? ' | ' + form.notes : ''}`,
+        drinkOrder: form.drink !== 'Nada' ? form.drink : null,
+        guestEmail: form.email,
+        notes: form.notes || null,
       };
-      await reservationsAPI.create(payload);
-      setBooking({ ...payload, code, userName: form.name });
+      const res = await reservationsAPI.create(payload);
+      setBooking({ ...payload, code: res.data.paymentCode, userName: form.name });
       setStep(5);
     } catch (err) {
-      setError('Error al crear la reserva. Intentá de nuevo.');
+      setError(err.response?.data?.error || 'Error al crear la reserva. Intentá de nuevo.');
     } finally {
       setSubmitting(false);
     }
@@ -586,25 +588,49 @@ export default function Reservations() {
               {[
                 { name: 'name', label: 'Nombre completo *', type: 'text', placeholder: 'Juan García' },
                 { name: 'phone', label: 'Teléfono / WhatsApp *', type: 'tel', placeholder: '+54 353 656-8980' },
-                { name: 'email', label: 'Email', type: 'email', placeholder: 'tu@email.com' },
-                { name: 'notes', label: 'Notas adicionales', type: 'textarea', placeholder: 'Técnica que querés trabajar, nivel, etc.' },
+                { name: 'email', label: 'Email *', type: 'email', placeholder: 'tu@email.com' },
               ].map(f => (
                 <div key={f.name}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
                     {f.label}
                   </label>
-                  {f.type === 'textarea' ? (
-                    <textarea className="input-dark" name={f.name} placeholder={f.placeholder}
-                      value={form[f.name]} onChange={handle} rows={3}
-                      style={{ resize: 'vertical' }}
-                    />
-                  ) : (
-                    <input className="input-dark" type={f.type} name={f.name}
-                      placeholder={f.placeholder} value={form[f.name]} onChange={handle}
-                    />
-                  )}
+                  <input className="input-dark" type={f.type} name={f.name}
+                    placeholder={f.placeholder} value={form[f.name]} onChange={handle}
+                  />
                 </div>
               ))}
+
+              {/* Bebida */}
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+                  ¿Querés tomar algo? <span style={{ fontSize: 11, color: '#5a6492', fontWeight: 400 }}>(opcional)</span>
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {DRINK_OPTIONS.map(d => (
+                    <button key={d} type="button"
+                      onClick={() => setForm(f => ({ ...f, drink: d }))}
+                      style={{
+                        padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        background: form.drink === d ? 'rgba(0,217,159,0.15)' : 'rgba(20,24,54,0.9)',
+                        border: form.drink === d ? '1.5px solid #00d99f' : '1.5px solid #1e2347',
+                        color: form.drink === d ? '#00d99f' : 'rgba(255,255,255,0.6)',
+                      }}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+                  Notas adicionales
+                </label>
+                <textarea className="input-dark" name="notes" placeholder="Técnica que querés trabajar, nivel, etc."
+                  value={form.notes} onChange={handle} rows={3} style={{ resize: 'vertical' }}
+                />
+              </div>
             </div>
 
             <button className="btn-primary" onClick={submit} disabled={submitting}
@@ -639,33 +665,54 @@ export default function Reservations() {
             background: 'rgba(20,24,54,0.9)', border: '1px solid #1e2347',
             borderRadius: 20, textAlign: 'left', maxWidth: 480, width: '100%', margin: '0 auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
-          }} className="p-6 sm:p-10">
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#5a6492', letterSpacing: '0.15em', marginBottom: 8 }}>
-                CÓDIGO DE RESERVA
+            overflow: 'hidden',
+          }}>
+            {/* Payment banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(0,217,159,0.12), rgba(0,153,255,0.08))',
+              borderBottom: '1px solid rgba(0,217,159,0.2)',
+              padding: '20px 28px',
+            }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#5a6492', letterSpacing: '0.15em', marginBottom: 6 }}>
+                TRANSFERÍ EL PAGO PARA CONFIRMAR
+              </div>
+              <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: 12 }}>
+                Enviá <span style={{ fontWeight: 800, color: 'white' }}>{formatPrice(booking.totalPrice)}</span> al alias:
               </div>
               <div style={{
-                fontSize: 'clamp(22px, 6vw, 32px)', fontWeight: 900, letterSpacing: '0.15em', color: '#00d99f',
+                fontSize: 22, fontWeight: 900, color: '#00d99f', letterSpacing: '0.05em',
                 background: 'rgba(0,217,159,0.1)', border: '1px solid rgba(0,217,159,0.3)',
-                borderRadius: 12, padding: '12px 20px', display: 'inline-block', wordBreak: 'break-all',
+                borderRadius: 10, padding: '10px 16px', display: 'inline-block', marginBottom: 10,
               }}>
-                {booking.code}
+                envelope.rental
+              </div>
+              <div style={{ fontSize: 12, color: '#5a6492' }}>
+                En el concepto escribí tu código: <span style={{ color: '#00d99f', fontWeight: 700 }}>{booking.code}</span>
               </div>
             </div>
-            {[
-              { icon: '🎧', label: 'Servicio', value: booking.serviceName },
-              { icon: '📅', label: 'Inicio', value: formatDateTime(booking.startTime) },
-              { icon: '⏱️', label: 'Duración', value: `${booking.durationHours} hora(s)` },
-              { icon: '💵', label: 'Total', value: formatPrice(booking.totalPrice) + ' (abonar al llegar)' },
-            ].map(item => (
-              <div key={item.label} style={{ display: 'flex', gap: 14, marginBottom: 16, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 20 }}>{item.icon}</span>
-                <div>
-                  <div style={{ fontSize: 11, color: '#5a6492', marginBottom: 2 }}>{item.label}</div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{item.value}</div>
+
+            <div style={{ padding: '20px 28px' }}>
+              <div style={{ textAlign: 'center', marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#5a6492', letterSpacing: '0.15em', marginBottom: 6 }}>
+                  CÓDIGO DE RESERVA
+                </div>
+                <div style={{
+                  fontSize: 'clamp(20px, 5vw, 28px)', fontWeight: 900, letterSpacing: '0.15em', color: '#00d99f',
+                }}>
+                  {booking.code}
                 </div>
               </div>
-            ))}
+              {[
+                { label: 'Servicio', value: booking.serviceName },
+                { label: 'Inicio', value: formatDateTime(booking.startTime) },
+                { label: 'Duración', value: `${booking.durationHours} hora(s)` },
+              ].map(item => (
+                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #1a1f40' }}>
+                  <span style={{ fontSize: 12, color: '#5a6492' }}>{item.label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{item.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>

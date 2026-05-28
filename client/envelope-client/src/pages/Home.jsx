@@ -235,6 +235,66 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── TESTIMONIOS ──────────────────────────────────── */}
+      <section style={{ padding: '80px 24px', maxWidth: 1200, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 48 }}>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 700, color: '#00d99f', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 10 }}>
+              Testimonios
+            </p>
+            <h2 style={{ fontSize: 'clamp(22px, 3.5vw, 34px)', fontWeight: 800, letterSpacing: '-0.5px' }}>
+              Lo que dice la comunidad
+            </h2>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 64 }}>
+          {[
+            { name: 'Valentina R.', role: 'DJ · 6 meses practicando', quote: 'El equipo es increíble, igual al de los festivales. Aprendí más en 2 meses acá que en años con setup casero. Lo recomiendo sin dudas.' },
+            { name: 'Mateo S.', role: 'Productor · Residente Villa María', quote: 'Grabé mi primer set en video con las DJI y quedó a nivel profesional. El espacio es privado, cómodo, y el sonido con los JBL es otro nivel.' },
+            { name: 'Lucía B.', role: 'Estudiante avanzada', quote: 'Las clases 1:1 me cambiaron la cabeza. El instructor me enseñó técnicas que no encontré en ningún tutorial. Vale cada peso.' },
+            { name: 'Seba G.', role: 'DJ · Eventos privados', quote: 'Alquilé los CDJ-3000 para un evento y todo salió perfecto. Traslado, montaje, asesoramiento. Equipo muy profesional.' },
+          ].map(t => (
+            <div key={t.name} className="glass-card" style={{ padding: '28px 24px' }}>
+              <div style={{ fontSize: 32, color: '#00d99f', lineHeight: 1, marginBottom: 16, opacity: 0.5 }}>"</div>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', lineHeight: 1.75, marginBottom: 20 }}>
+                {t.quote}
+              </p>
+              <div style={{ borderTop: '1px solid #1e2347', paddingTop: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'white' }}>{t.name}</div>
+                <div style={{ fontSize: 11, color: '#5a6492', marginTop: 3 }}>{t.role}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Trust bar */}
+        <div style={{
+          display: 'flex', flexWrap: 'wrap', gap: 12, justifyContent: 'center', alignItems: 'center',
+          padding: '28px 32px',
+          background: 'rgba(10,14,39,0.5)', border: '1px solid #1e2347', borderRadius: 16,
+        }}>
+          {[
+            { label: 'Transferencia Bancaria', sub: 'Alias: envelope.rental' },
+            { label: 'MercadoPago', sub: 'Aceptamos MP' },
+            { label: 'Equipos Pioneer', sub: '100% certificados' },
+            { label: 'Garantía Envelope', sub: 'Satisfacción o repetís gratis' },
+          ].map(b => (
+            <div key={b.label} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 18px', borderRadius: 10,
+              background: 'rgba(20,24,54,0.8)', border: '1px solid #1e2347',
+            }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00d99f', flexShrink: 0 }} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'white' }}>{b.label}</div>
+                <div style={{ fontSize: 10, color: '#5a6492' }}>{b.sub}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ── HORARIOS ─────────────────────────────────────── */}
       <section style={{ padding: '60px 24px 100px', maxWidth: 1000, margin: '0 auto' }}>
         <div style={{
