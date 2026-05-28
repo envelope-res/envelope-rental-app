@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -368,6 +369,12 @@ app.post('/api/admin/block-slots', async (req, res) => {
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
+});
+
+// Serve React build in production
+app.use(express.static(path.join(__dirname, '../client/envelope-client/build')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../client/envelope-client/build/index.html'));
 });
 
 app.listen(PORT, () => {
