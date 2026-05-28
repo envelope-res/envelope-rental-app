@@ -270,7 +270,11 @@ export default function Reservations() {
       setBooking({ ...payload, code, userName: form.name, option: selectedOption });
       setStep(5);
     } catch (err) {
-      setError(err.response?.data?.error || 'Error al crear la reserva. Intentá de nuevo.');
+      const msg = err.response?.data?.error
+        || (err.response ? `Error ${err.response.status}` : err.message)
+        || 'Error al crear la reserva. Intentá de nuevo.';
+      setError(msg);
+      console.error('Reservation error:', err.response?.status, err.response?.data, err.message);
     } finally {
       setSubmitting(false);
     }

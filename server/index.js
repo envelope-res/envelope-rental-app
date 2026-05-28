@@ -391,8 +391,14 @@ app.post('/api/admin/block-slots', async (req, res) => {
 });
 
 // Serve React build in production
-app.use(express.static(path.join(__dirname, '../client/envelope-client/build')));
+app.use(express.static(path.join(__dirname, '../client/envelope-client/build'), {
+  index: false, // handled below with no-cache headers
+}));
 app.get('*', (req, res) => {
+  // Prevent mobile browsers from caching index.html so they always load the latest JS bundle
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   res.sendFile(path.join(__dirname, '../client/envelope-client/build/index.html'));
 });
 
