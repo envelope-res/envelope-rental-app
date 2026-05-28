@@ -561,7 +561,15 @@ export default function Reservations() {
                 return (
                   <button
                     key={pack.id}
-                    onClick={() => { setSelectedOption(pack); setShowUpsell(false); }}
+                    onClick={() => {
+                      if (!user) {
+                        sessionStorage.setItem('pendingPack', JSON.stringify({ serviceId: selectedService.id, optionId: pack.id }));
+                        navigate('/registro');
+                        return;
+                      }
+                      setSelectedOption(pack);
+                      setShowUpsell(false);
+                    }}
                     onMouseEnter={e => e.currentTarget.style.borderColor = '#00d99f'}
                     onMouseLeave={e => e.currentTarget.style.borderColor = '#1e2347'}
                     style={{
