@@ -735,7 +735,7 @@ export default function Reservations() {
 
             <button className="btn-primary" onClick={submit} disabled={submitting}
               style={{ marginTop: 28, width: '100%', justifyContent: 'center', padding: '16px', fontSize: 15, opacity: submitting ? 0.7 : 1 }}>
-              {submitting ? '⏳ Procesando...' : '✅ Confirmar reserva'}
+              {submitting ? 'Procesando...' : 'Confirmar reserva'}
             </button>
           </div>
         </div>
@@ -844,7 +844,7 @@ export default function Reservations() {
                   className="btn-primary"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
-                  📱 Coordinar sesiones por WhatsApp
+                  Coordinar sesiones por WhatsApp
                 </a>
                 <button onClick={reset} className="btn-ghost" style={{ maxWidth: 340, width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15 }}>
                   Volver al inicio
@@ -865,7 +865,7 @@ export default function Reservations() {
                   className="btn-primary"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
-                  📅 Agregar a mi calendario
+                  Agregar a mi calendario
                 </a>
                 <a
                   href={`https://wa.me/543536568980?text=Hola! Hice una reserva en Envelope Rental. Código: ${booking.code}. Servicio: ${booking.serviceName}.`}
@@ -873,7 +873,7 @@ export default function Reservations() {
                   className="btn-secondary"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
-                  📱 Confirmar por WhatsApp
+                  Confirmar por WhatsApp
                 </a>
               </>
             )}

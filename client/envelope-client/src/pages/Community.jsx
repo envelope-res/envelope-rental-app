@@ -233,7 +233,7 @@ export default function Community() {
                 </div>
                 <div style={{ display: 'flex', gap: 12 }}>
                   <button type="submit" className="btn-primary" disabled={submitting} style={{ opacity: submitting ? 0.7 : 1 }}>
-                    {submitting ? 'Publicando...' : '✅ Publicar evento'}
+                    {submitting ? 'Publicando...' : 'Publicar evento'}
                   </button>
                   <button type="button" className="btn-ghost" onClick={() => setShowEventForm(false)}>Cancelar</button>
                 </div>

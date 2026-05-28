@@ -118,7 +118,7 @@ export default function Admin() {
               autoFocus
             />
             <button className="btn-primary" onClick={unlock} style={{ width: '100%', justifyContent: 'center', marginTop: 16, padding: 14 }}>
-              🚀 Acceder
+              Acceder
             </button>
             <div style={{ marginTop: 16, fontSize: 11, color: '#3a4270', textAlign: 'center' }}>
               PIN demo: <span style={{ color: '#00d99f' }}>envelope2024</span>

@@ -335,7 +335,7 @@ export default function RentalEquipment() {
                   </div>
                   <button type="submit" className="btn-primary"
                     style={{ width: '100%', justifyContent: 'center', padding: '14px' }}>
-                    📱 Consultar por WhatsApp
+                    Consultar por WhatsApp
                   </button>
                 </form>
                 <div style={{ borderTop: '1px solid #1e2347', marginTop: 20, paddingTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -349,7 +349,7 @@ export default function RentalEquipment() {
                       fontWeight: 600, fontSize: 13, textDecoration: 'none', transition: 'all 0.2s',
                     }}
                   >
-                    📱 Consultar por WhatsApp
+                    Consultar por WhatsApp
                   </a>
                   <p style={{ fontSize: 11, color: '#3a4270', textAlign: 'center' }}>
                     Sin compromiso · envelope.rental@gmail.com

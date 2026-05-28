@@ -114,8 +114,36 @@ function initDB() {
     db.run(`ALTER TABLE reservations ADD COLUMN pack_id INTEGER`, () => {});
     db.run(`ALTER TABLE hour_packs ADD COLUMN service_name TEXT`, () => {});
     db.run(`ALTER TABLE hour_packs ADD COLUMN payment_code TEXT`, () => {});
+    db.run(`ALTER TABLE users ADD COLUMN google_id TEXT`, () => {});
   });
 }
+
+app.post('/api/auth/google', async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'Token requerido' });
+
+    // Fetch user info from Google
+    const googleRes = await fetch(`https://www.googleapis.com/oauth2/v2/userinfo?access_token=${accessToken}`);
+    if (!googleRes.ok) return res.status(401).json({ error: 'Token de Google inválido' });
+    const googleUser = await googleRes.json();
+
+    // Find or create user
+    let user = await dbGet('SELECT * FROM users WHERE email = ?', [googleUser.email]);
+    if (!user) {
+      const result = await dbRun(
+        'INSERT INTO users (email, name, google_id, password) VALUES (?, ?, ?, ?)',
+        [googleUser.email, googleUser.name, googleUser.id, '']
+      );
+      user = { id: result.id, email: googleUser.email, name: googleUser.name };
+    }
+
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret');
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
 
 app.post('/api/auth/register', async (req, res) => {
   try {

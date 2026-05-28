@@ -235,7 +235,7 @@ export default function Dashboard() {
                         </div>
                         {!expired && p.remaining_hours > 0 && (
                           <Link to={`/reservas?packId=${p.id}`} className="btn-primary" style={{ marginTop: 16, fontSize: 13, padding: '10px 20px', display: 'inline-flex' }}>
-                            🎟️ Reservar sesión ({p.remaining_hours}h disponibles)
+                            Reservar sesión ({p.remaining_hours}h disponibles)
                           </Link>
                         )}
                       </div>
