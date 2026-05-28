@@ -164,6 +164,9 @@ function TimeSlots({ date, duration, onSelect, selected }) {
 
 const serviceList = Object.values(SERVICES);
 
+// Packs (≥4h) don't need a fixed time slot — user coordinates sessions via WhatsApp
+const isPack = (opt) => opt && opt.hours >= 4;
+
 const STEPS = ['Servicio', 'Opción', 'Fecha', 'Hora', 'Datos', 'Confirmación'];
 
 export default function Reservations() {
@@ -206,8 +209,8 @@ export default function Reservations() {
         userId: user?.id || null,
         serviceType: selectedService.id,
         serviceName: `${selectedService.name} – ${selectedOption.label}`,
-        startTime: selectedTime,
-        endTime: endTime(selectedTime, selectedOption.hours || 1),
+        startTime: isPack(selectedOption) ? null : selectedTime,
+        endTime: isPack(selectedOption) ? null : endTime(selectedTime, selectedOption.hours || 1),
         durationHours: selectedOption.hours || 1,
         totalPrice: selectedOption.price,
         drinkOrder: form.drink !== 'Nada' ? form.drink : null,
@@ -215,7 +218,7 @@ export default function Reservations() {
         notes: form.notes || null,
       };
       const res = await reservationsAPI.create(payload);
-      setBooking({ ...payload, code: res.data.paymentCode, userName: form.name });
+      setBooking({ ...payload, code: res.data.paymentCode, userName: form.name, option: selectedOption });
       setStep(5);
     } catch (err) {
       setError(err.response?.data?.error || 'Error al crear la reserva. Intentá de nuevo.');
@@ -240,7 +243,7 @@ export default function Reservations() {
     <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 24px 80px' }}>
       {/* Botón volver — arriba del todo, solo en pasos intermedios */}
       {step > 0 && step < 5 && (
-        <button className="btn-back" onClick={() => setStep(step - 1)}>
+        <button className="btn-back" onClick={() => setStep(step === 4 && isPack(selectedOption) ? 1 : step - 1)}>
           ‹ Volver
         </button>
       )}
@@ -327,7 +330,7 @@ export default function Reservations() {
             {selectedService.options.map(opt => (
               <div key={opt.id}
                 className={`service-card ${selectedOption?.id === opt.id ? 'selected' : ''}`}
-                onClick={() => { setSelectedOption(opt); setStep(2); }}
+                onClick={() => { setSelectedOption(opt); setStep(isPack(opt) ? 4 : 2); }}
                 style={{ padding: 20, position: 'relative' }}
               >
                 {/* Badges: etiqueta + descuento */}
@@ -555,9 +558,10 @@ export default function Reservations() {
                 {[
                   { label: 'Servicio', value: selectedService?.name },
                   { label: 'Opción', value: selectedOption?.label },
-                  { label: 'Fecha', value: selectedDate && new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) },
-                  { label: 'Hora', value: selectedTime?.split('T')[1]?.slice(0, 5) + ' hs' },
-                ].map(r => (
+                  !isPack(selectedOption) && { label: 'Fecha', value: selectedDate && new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'short' }) },
+                  !isPack(selectedOption) && { label: 'Hora', value: selectedTime?.split('T')[1]?.slice(0, 5) + ' hs' },
+                  isPack(selectedOption) && { label: 'Sesiones', value: 'Coordinás por WhatsApp' },
+                ].filter(Boolean).map(r => (
                   <div key={r.label}>
                     <div style={{ fontSize: 10, color: '#3a4270', marginBottom: 2 }}>{r.label}</div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.9)' }}>{r.value}</div>
@@ -569,7 +573,9 @@ export default function Reservations() {
                 <div className="gradient-text" style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1 }}>
                   {selectedOption && formatPrice(selectedOption.price)}
                 </div>
-                <div style={{ fontSize: 11, color: '#3a4270', marginTop: 4 }} className="hidden md:block">Se abona al llegar al estudio</div>
+                <div style={{ fontSize: 11, color: '#3a4270', marginTop: 4 }} className="hidden md:block">
+                  {isPack(selectedOption) ? 'Abonás al confirmar el pack' : 'Se abona al llegar al estudio'}
+                </div>
               </div>
             </div>
           </div>
@@ -654,10 +660,12 @@ export default function Reservations() {
             ¡Reserva confirmada!
           </div>
           <h1 style={{ fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 800, marginBottom: 8, lineHeight: 1.2 }}>
-            Nos vemos en el estudio, {booking.userName}!
+            {isPack(booking.option) ? `¡Tu pack está registrado, ${booking.userName}!` : `Nos vemos en el estudio, ${booking.userName}!`}
           </h1>
           <p style={{ fontSize: 15, color: '#5a6492', marginBottom: 40 }}>
-            Guardá tu código de reserva para presentar al llegar.
+            {isPack(booking.option)
+              ? 'Coordiná tus sesiones por WhatsApp. Guardá tu código para identificar el pack.'
+              : 'Guardá tu código de reserva para presentar al llegar.'}
           </p>
 
           {/* Booking card */}
@@ -704,9 +712,9 @@ export default function Reservations() {
               </div>
               {[
                 { label: 'Servicio', value: booking.serviceName },
-                { label: 'Inicio', value: formatDateTime(booking.startTime) },
-                { label: 'Duración', value: `${booking.durationHours} hora(s)` },
-              ].map(item => (
+                !isPack(booking.option) && { label: 'Inicio', value: formatDateTime(booking.startTime) },
+                { label: isPack(booking.option) ? 'Crédito' : 'Duración', value: `${booking.durationHours} hora(s)` },
+              ].filter(Boolean).map(item => (
                 <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid #1a1f40' }}>
                   <span style={{ fontSize: 12, color: '#5a6492' }}>{item.label}</span>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{item.value}</span>
@@ -716,29 +724,47 @@ export default function Reservations() {
           </div>
 
           <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-            <a
-              href={(() => {
-                const fmt = (iso) => iso.replace(/[-:]/g, '').slice(0, 15);
-                const title = encodeURIComponent(`Envelope Rental – ${booking.serviceName}`);
-                const dates = `${fmt(booking.startTime)}/${fmt(booking.endTime)}`;
-                const details = encodeURIComponent(`Código de reserva: ${booking.code}\nAbonar ${formatPrice(booking.totalPrice)} al llegar.\nConsultas: https://wa.me/543536568980`);
-                const location = encodeURIComponent('Villa Nueva, CP 5093 – Córdoba');
-                return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
-              })()}
-              target="_blank" rel="noopener noreferrer"
-              className="btn-primary"
-              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
-            >
-              📅 Agregar a mi calendario
-            </a>
-            <a
-              href={`https://wa.me/543536568980?text=Hola! Hice una reserva en Envelope Rental. Código: ${booking.code}. Servicio: ${booking.serviceName}.`}
-              target="_blank" rel="noopener noreferrer"
-              className="btn-secondary"
-              style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
-            >
-              📱 Confirmar por WhatsApp
-            </a>
+            {isPack(booking.option) ? (
+              <>
+                <a
+                  href={`https://wa.me/543536568980?text=Hola! Compré el ${booking.serviceName} en Envelope Rental. Código: ${booking.code}. Quiero coordinar mis sesiones.`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
+                >
+                  📱 Coordinar sesiones por WhatsApp
+                </a>
+                <button onClick={reset} className="btn-ghost" style={{ maxWidth: 340, width: '100%', justifyContent: 'center', padding: '14px 24px', fontSize: 15 }}>
+                  Volver al inicio
+                </button>
+              </>
+            ) : (
+              <>
+                <a
+                  href={(() => {
+                    const fmt = (iso) => iso.replace(/[-:]/g, '').slice(0, 15);
+                    const title = encodeURIComponent(`Envelope Rental – ${booking.serviceName}`);
+                    const dates = `${fmt(booking.startTime)}/${fmt(booking.endTime)}`;
+                    const details = encodeURIComponent(`Código de reserva: ${booking.code}\nAbonar ${formatPrice(booking.totalPrice)} al llegar.\nConsultas: https://wa.me/543536568980`);
+                    const location = encodeURIComponent('Villa Nueva, CP 5093 – Córdoba');
+                    return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
+                  })()}
+                  target="_blank" rel="noopener noreferrer"
+                  className="btn-primary"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
+                >
+                  📅 Agregar a mi calendario
+                </a>
+                <a
+                  href={`https://wa.me/543536568980?text=Hola! Hice una reserva en Envelope Rental. Código: ${booking.code}. Servicio: ${booking.serviceName}.`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="btn-secondary"
+                  style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
+                >
+                  📱 Confirmar por WhatsApp
+                </a>
+              </>
+            )}
           </div>
         </div>
       )}

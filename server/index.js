@@ -159,15 +159,17 @@ app.post('/api/reservations', async (req, res) => {
   try {
     const { userId, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder, guestEmail, notes } = req.body;
 
-    // Conflict check — reject if another pending/confirmed reservation overlaps
-    const conflicts = await dbAll(
-      `SELECT id FROM reservations
-       WHERE status IN ('pending', 'confirmed')
-       AND start_time < ? AND end_time > ?`,
-      [endTime, startTime]
-    );
-    if (conflicts.length > 0) {
-      return res.status(409).json({ error: 'Este horario ya está reservado. Por favor elegí otro turno.' });
+    // Conflict check — only for single-session bookings (packs have no fixed time)
+    if (startTime && endTime) {
+      const conflicts = await dbAll(
+        `SELECT id FROM reservations
+         WHERE status IN ('pending', 'confirmed')
+         AND start_time < ? AND end_time > ?`,
+        [endTime, startTime]
+      );
+      if (conflicts.length > 0) {
+        return res.status(409).json({ error: 'Este horario ya está reservado. Por favor elegí otro turno.' });
+      }
     }
 
     const result = await dbRun(
