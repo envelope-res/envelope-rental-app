@@ -46,7 +46,7 @@ const EXTRAS = [
 ];
 
 export default function RentalEquipment() {
-  const [form, setForm] = useState({ name: '', phone: '', email: '', date: '', duration: '', notes: '' });
+  const [form, setForm] = useState({ name: '', phone: '', email: '', config: '', date: '', duration: '', notes: '' });
   const [submitted, setSubmitted] = useState(false);
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -56,6 +56,7 @@ export default function RentalEquipment() {
     const msg = encodeURIComponent(
       `Hola! Quiero consultar sobre alquiler de equipos.\n` +
       `Nombre: ${form.name}\nTeléfono: ${form.phone}\nEmail: ${form.email}\n` +
+      `Configuración: ${form.config || 'A definir'}\n` +
       `Fecha del evento: ${form.date || 'A coordinar'}\n` +
       `Duración: ${form.duration || 'A confirmar'}\nDetalles: ${form.notes || '-'}`
     );
@@ -278,9 +279,7 @@ export default function RentalEquipment() {
                   {[
                     { name: 'name', label: 'Nombre *', type: 'text', placeholder: 'Tu nombre' },
                     { name: 'phone', label: 'Teléfono *', type: 'tel', placeholder: '+54 353 656-8980' },
-                    { name: 'email', label: 'Email', type: 'email', placeholder: 'tu@email.com' },
-                    { name: 'date', label: 'Fecha del evento *', type: 'date' },
-                    { name: 'duration', label: 'Duración estimada', type: 'text', placeholder: 'Ej: 4 horas' },
+                    { name: 'email', label: 'Email *', type: 'email', placeholder: 'tu@email.com' },
                   ].map(f => (
                     <div key={f.name} style={{ marginBottom: 14 }}>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5a6492', marginBottom: 6 }}>
@@ -288,10 +287,42 @@ export default function RentalEquipment() {
                       </label>
                       <input className="input-dark" type={f.type} name={f.name}
                         placeholder={f.placeholder} value={form[f.name]}
-                        onChange={handle} required={f.label.includes('*')}
+                        onChange={handle} required
                       />
                     </div>
                   ))}
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5a6492', marginBottom: 6 }}>
+                      Configuración *
+                    </label>
+                    <select className="input-dark" name="config" value={form.config} onChange={handle} required>
+                      <option value="">Seleccioná un setup</option>
+                      <option value="CDJ-3000 × 2 + DJM-A9">CDJ-3000 × 2 + DJM-A9 (sin monitores)</option>
+                      <option value="Setup completo: CDJ-3000 × 2 + DJM-A9 + JBL 305p × 2">Setup completo: CDJ + mixer + monitores JBL</option>
+                      <option value="Setup completo + iluminación ambiente">Setup completo + iluminación ambiente</option>
+                      <option value="A coordinar">No estoy seguro, necesito asesoramiento</option>
+                    </select>
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5a6492', marginBottom: 6 }}>
+                      Fecha del evento *
+                    </label>
+                    <input className="input-dark" type="date" name="date" value={form.date} onChange={handle} required />
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5a6492', marginBottom: 6 }}>
+                      Cantidad de horas *
+                    </label>
+                    <select className="input-dark" name="duration" value={form.duration} onChange={handle} required>
+                      <option value="">Seleccioná duración</option>
+                      {['1 hora', '2 horas', '3 horas', '4 horas', '5 horas', '6 horas', '7 horas', '8+ horas'].map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
                   <div style={{ marginBottom: 20 }}>
                     <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#5a6492', marginBottom: 6 }}>
                       Detalles del evento
