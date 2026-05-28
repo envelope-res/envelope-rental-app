@@ -1,12 +1,39 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SERVICES, formatPrice } from '../services/api';
+import { FlickeringGrid } from '../components/FlickeringGrid';
+
+// NumberTicker — counts up to value when scrolled into view
+function NumberTicker({ value, suffix = '', delay = 0 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting) return;
+      obs.disconnect();
+      const duration = 1600;
+      const start = performance.now() + delay;
+      const tick = (now) => {
+        if (now < start) { requestAnimationFrame(tick); return; }
+        const t = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(value * eased) + suffix;
+        if (t < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, { threshold: 0.5 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [value, suffix, delay]);
+  return <span ref={ref}>0{suffix}</span>;
+}
 
 const STATS = [
-  { value: '500+', label: 'Sesiones realizadas' },
-  { value: '200+', label: 'DJs de la comunidad' },
-  { value: '1', label: 'Estudio disponible' },
-  { value: '98%', label: 'Satisfacción' },
+  { num: 500, suffix: '+', label: 'Sesiones realizadas' },
+  { num: 200, suffix: '+', label: 'DJs de la comunidad' },
+  { num: 1,   suffix: '',  label: 'Estudio disponible' },
+  { num: 98,  suffix: '%', label: 'Satisfacción' },
 ];
 
 const ALL_SERVICES = [
@@ -38,13 +65,38 @@ export default function Home() {
         overflow: 'hidden',
         background: '#04060f',
       }}>
-        <div className="grid-bg" style={{ position: 'absolute', inset: 0, opacity: 0.3 }} />
+        {/* FlickeringGrid background */}
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.28 }}>
+          <FlickeringGrid color="#00d99f" squareSize={3} gridGap={9} flickerChance={0.12} maxOpacity={0.45} />
+        </div>
 
-        {/* vertical center line — subtle structural element */}
+        {/* Depth orbs */}
+        <div className="orb orb-green" style={{
+          width: 700, height: 700,
+          top: -200, right: -150,
+          position: 'absolute',
+          opacity: 0.7,
+        }} />
+        <div className="orb orb-blue" style={{
+          width: 500, height: 500,
+          bottom: -100, left: -100,
+          position: 'absolute',
+          opacity: 0.6,
+        }} />
+
+        {/* Vertical center line */}
         <div style={{
           position: 'absolute', top: 0, bottom: 0, left: '50%',
           width: 1,
-          background: 'linear-gradient(to bottom, transparent, rgba(0,217,159,0.12) 40%, transparent)',
+          background: 'linear-gradient(to bottom, transparent, rgba(0,217,159,0.15) 40%, transparent)',
+          pointerEvents: 'none',
+        }} />
+
+        {/* Horizontal accent line — top of content area */}
+        <div style={{
+          position: 'absolute', left: 0, right: 0, top: '38%',
+          height: 1,
+          background: 'linear-gradient(90deg, transparent 0%, rgba(0,217,159,0.08) 30%, rgba(0,217,159,0.08) 70%, transparent 100%)',
           pointerEvents: 'none',
         }} />
 
@@ -59,7 +111,8 @@ export default function Home() {
             borderTop: '1px solid rgba(255,255,255,0.07)',
             paddingTop: 20, marginBottom: 52,
           }}>
-            <span style={{ fontSize: 11, color: '#5a6492', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
+            <span style={{ fontSize: 11, color: '#5a6492', letterSpacing: '0.2em', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span className="animate-glow-pulse" style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#00d99f', flexShrink: 0 }} />
               Villa María · Córdoba
             </span>
             <span style={{ fontSize: 11, color: '#5a6492', letterSpacing: '0.2em', textTransform: 'uppercase' }}>
@@ -77,7 +130,7 @@ export default function Home() {
             marginBottom: 44,
           }}>
             Cabina DJ<br />
-            <span style={{ color: '#00d99f' }}>Profesional</span>
+            <span className="text-shiny">Profesional</span>
           </h1>
 
           {/* divider */}
@@ -107,10 +160,18 @@ export default function Home() {
               </div>
 
               <div className="hero-reveal hero-reveal-5" style={{ display: 'flex', gap: 40 }}>
-                {[['$20k', 'desde / hora'], ['L–V', '17 a 22 hs'], ['Sáb', '10 a 20 hs']].map(([v, l]) => (
-                  <div key={v}>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>{v}</div>
-                    <div style={{ fontSize: 10, color: '#5a6492', marginTop: 4, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{l}</div>
+                {[
+                  { display: null, prefix: '$', num: 20, suffix: 'k', label: 'desde / hora' },
+                  { display: 'L–V', label: '17 a 22 hs' },
+                  { display: 'Sáb', label: '10 a 20 hs' },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div style={{ fontSize: 18, fontWeight: 700, color: 'white', letterSpacing: '-0.5px' }}>
+                      {item.display ?? (
+                        <>{item.prefix}<NumberTicker value={item.num} suffix={item.suffix} delay={800} /></>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 10, color: '#5a6492', marginTop: 4, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{item.label}</div>
                   </div>
                 ))}
               </div>
@@ -220,14 +281,14 @@ export default function Home() {
           borderTop: '1px solid #1e2347',
           borderLeft: '1px solid #1e2347',
         }}>
-          {STATS.map(s => (
-            <div key={s.value} style={{
+          {STATS.map((s, i) => (
+            <div key={s.label} style={{
               padding: '40px 28px',
               borderRight: '1px solid #1e2347',
               borderBottom: '1px solid #1e2347',
             }}>
               <div style={{ fontSize: 40, fontWeight: 900, color: '#00d99f', letterSpacing: '-2px', marginBottom: 8 }}>
-                {s.value}
+                <NumberTicker value={s.num} suffix={s.suffix} delay={i * 120} />
               </div>
               <div style={{ fontSize: 12, color: '#5a6492', letterSpacing: '0.05em' }}>{s.label}</div>
             </div>

@@ -48,6 +48,27 @@ body {
   to   { transform: translateY(0);    opacity: 1; }
 }
 
+@keyframes shinySlide {
+  0% { background-position: -250% center; }
+  100% { background-position: 250% center; }
+}
+
+.text-shiny {
+  background: linear-gradient(
+    90deg,
+    #00d99f 20%,
+    #ffffff 40%,
+    #7fffdf 50%,
+    #ffffff 60%,
+    #00d99f 80%
+  );
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shinySlide 3.5s linear infinite;
+}
+
 .hero-reveal {
   animation: heroReveal 0.75s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
