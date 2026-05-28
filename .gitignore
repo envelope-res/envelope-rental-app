@@ -1,0 +1,11 @@
+node_modules/
+.env
+.env.production
+.env.local
+.DS_Store
+envelope.db
+*.db
+.claude/
+.agents/
+skills-lock.json
+AGUSTIN_CONTEXTO_COMPLETO.md
