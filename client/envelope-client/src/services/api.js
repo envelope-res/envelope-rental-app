@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: `http://${window.location.hostname}:5000`,
+  baseURL: process.env.NODE_ENV === 'production'
+    ? ''  // same origin in production (Express serves the build)
+    : `http://${window.location.hostname}:5000`,
   timeout: 10000,
 });
 
@@ -53,6 +55,7 @@ export const adminAPI = {
 
 export const packsAPI = {
   getMine: () => api.get('/api/hour-packs'),
+  // data: { hours, price, serviceName, paymentCode }
   create: (data) => api.post('/api/hour-packs', data),
 };
 

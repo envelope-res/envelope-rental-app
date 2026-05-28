@@ -111,6 +111,9 @@ function initDB() {
     // Migrations — ignored silently if columns already exist
     db.run(`ALTER TABLE reservations ADD COLUMN drinks_order TEXT`, () => {});
     db.run(`ALTER TABLE reservations ADD COLUMN guest_email TEXT`, () => {});
+    db.run(`ALTER TABLE reservations ADD COLUMN pack_id INTEGER`, () => {});
+    db.run(`ALTER TABLE hour_packs ADD COLUMN service_name TEXT`, () => {});
+    db.run(`ALTER TABLE hour_packs ADD COLUMN payment_code TEXT`, () => {});
   });
 }
 
@@ -157,7 +160,16 @@ const verifyToken = (req, res, next) => {
 
 app.post('/api/reservations', async (req, res) => {
   try {
-    const { userId, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder, guestEmail, notes } = req.body;
+    const { userId, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder, guestEmail, notes, packId } = req.body;
+
+    // If booking uses pack hours: validate balance and deduct
+    if (packId) {
+      const pack = await dbGet('SELECT * FROM hour_packs WHERE id = ?', [packId]);
+      if (!pack) return res.status(404).json({ error: 'Pack no encontrado.' });
+      if (pack.remaining_hours < durationHours) {
+        return res.status(400).json({ error: `Horas insuficientes en el pack. Disponibles: ${pack.remaining_hours}h` });
+      }
+    }
 
     // Conflict check — only for single-session bookings (packs have no fixed time)
     if (startTime && endTime) {
@@ -174,10 +186,15 @@ app.post('/api/reservations', async (req, res) => {
 
     const result = await dbRun(
       `INSERT INTO reservations
-       (user_id, service_type, service_name, start_time, end_time, duration_hours, total_price, drinks_order, guest_email, notes, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [userId || null, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder || null, guestEmail || null, notes || null]
+       (user_id, service_type, service_name, start_time, end_time, duration_hours, total_price, drinks_order, guest_email, notes, status, pack_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+      [userId || null, serviceType, serviceName, startTime, endTime, durationHours, totalPrice, drinkOrder || null, guestEmail || null, notes || null, packId || null]
     );
+
+    // Deduct hours from pack after successful booking
+    if (packId) {
+      await dbRun('UPDATE hour_packs SET remaining_hours = remaining_hours - ? WHERE id = ?', [durationHours, packId]);
+    }
 
     // Sequential code: ENV-YYYY-NNNN
     const code = `ENV-${new Date().getFullYear()}-${String(result.id).padStart(4, '0')}`;
@@ -251,15 +268,15 @@ app.get('/api/available-slots', async (req, res) => {
   }
 });
 
-app.post('/api/hour-packs', async (req, res) => {
+app.post('/api/hour-packs', verifyToken, async (req, res) => {
   try {
-    const { userId, hours, price } = req.body;
+    const { hours, price, serviceName, paymentCode } = req.body;
     const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 30);
+    expiryDate.setDate(expiryDate.getDate() + 180); // 6 months
     const result = await dbRun(
-      `INSERT INTO hour_packs (user_id, total_hours, remaining_hours, total_price, expiry_date)
-       VALUES (?, ?, ?, ?, ?)`,
-      [userId, hours, hours, price, expiryDate.toISOString()]
+      `INSERT INTO hour_packs (user_id, total_hours, remaining_hours, total_price, expiry_date, service_name, payment_code)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [req.userId, hours, hours, price, expiryDate.toISOString(), serviceName || null, paymentCode || null]
     );
     res.json({ id: result.id });
   } catch (err) {

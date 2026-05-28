@@ -234,8 +234,8 @@ export default function Dashboard() {
                           Valor: {formatPrice(p.total_price)}
                         </div>
                         {!expired && p.remaining_hours > 0 && (
-                          <Link to="/reservas" className="btn-secondary" style={{ marginTop: 16, fontSize: 12, padding: '8px 16px', display: 'inline-flex' }}>
-                            Usar horas →
+                          <Link to={`/reservas?packId=${p.id}`} className="btn-primary" style={{ marginTop: 16, fontSize: 13, padding: '10px 20px', display: 'inline-flex' }}>
+                            🎟️ Reservar sesión ({p.remaining_hours}h disponibles)
                           </Link>
                         )}
                       </div>

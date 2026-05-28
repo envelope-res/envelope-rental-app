@@ -19,7 +19,8 @@ export default function Login() {
     try {
       const res = await authAPI.login(form);
       login(res.data.user, res.data.token);
-      navigate(res.data.user.email === 'admin@envelope.com' ? '/admin' : '/dashboard');
+      const hasPendingPack = Boolean(sessionStorage.getItem('pendingPack'));
+      navigate(res.data.user.email === 'admin@envelope.com' ? '/admin' : hasPendingPack ? '/reservas' : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Error al iniciar sesión');
     } finally {

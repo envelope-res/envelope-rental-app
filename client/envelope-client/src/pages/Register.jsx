@@ -21,7 +21,8 @@ export default function Register() {
     try {
       const res = await authAPI.register({ name: form.name, email: form.email, phone: form.phone, password: form.password });
       login(res.data.user, res.data.token);
-      navigate('/dashboard');
+      const hasPendingPack = Boolean(sessionStorage.getItem('pendingPack'));
+      navigate(hasPendingPack ? '/reservas' : '/dashboard');
     } catch (err) {
       setError(err.response?.data?.error || 'Error al registrarse');
     } finally {

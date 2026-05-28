@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { SERVICES, formatPrice, reservationsAPI } from '../services/api';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { SERVICES, formatPrice, reservationsAPI, packsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -171,6 +172,11 @@ const STEPS = ['Servicio', 'Opción', 'Fecha', 'Hora', 'Datos', 'Confirmación']
 
 export default function Reservations() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // packId in URL means user is booking a session using existing pack hours
+  const packIdFromUrl = searchParams.get('packId');
+
   const [step, setStep] = useState(0);
   const [selectedService, setSelectedService] = useState(null);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -181,6 +187,36 @@ export default function Reservations() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showUpsell, setShowUpsell] = useState(false);
+
+  // Pack-session mode: user already owns a pack and wants to schedule a session
+  const isPackSession = Boolean(packIdFromUrl);
+
+  // On mount: if user just registered with a pending pack intent, restore it
+  useEffect(() => {
+    if (!user) return;
+    const pending = sessionStorage.getItem('pendingPack');
+    if (pending) {
+      try {
+        const { serviceId, optionId } = JSON.parse(pending);
+        sessionStorage.removeItem('pendingPack');
+        const svc = SERVICES[serviceId];
+        const opt = svc?.options.find(o => o.id === optionId);
+        if (svc && opt) {
+          setSelectedService(svc);
+          setSelectedOption(opt);
+          setStep(4);
+        }
+      } catch (e) { /* ignore */ }
+    }
+  }, [user]);
+
+  // Pack-session mode: pre-select cabin service and start at step 1 (choose 1h or 2h)
+  useEffect(() => {
+    if (isPackSession) {
+      setSelectedService(SERVICES.cabin);
+      setStep(1);
+    }
+  }, [isPackSession]);
 
   useEffect(() => {
     if (step === 4 && selectedService?.id === 'cabin' &&
@@ -209,16 +245,29 @@ export default function Reservations() {
         userId: user?.id || null,
         serviceType: selectedService.id,
         serviceName: `${selectedService.name} – ${selectedOption.label}`,
-        startTime: isPack(selectedOption) ? null : selectedTime,
-        endTime: isPack(selectedOption) ? null : endTime(selectedTime, selectedOption.hours || 1),
+        startTime: (isPack(selectedOption) && !isPackSession) ? null : selectedTime,
+        endTime: (isPack(selectedOption) && !isPackSession) ? null : endTime(selectedTime, selectedOption.hours || 1),
         durationHours: selectedOption.hours || 1,
-        totalPrice: selectedOption.price,
+        totalPrice: isPackSession ? 0 : selectedOption.price,
         drinkOrder: form.drink !== 'Nada' ? form.drink : null,
         guestEmail: form.email,
         notes: form.notes || null,
+        packId: isPackSession ? Number(packIdFromUrl) : null,
       };
       const res = await reservationsAPI.create(payload);
-      setBooking({ ...payload, code: res.data.paymentCode, userName: form.name, option: selectedOption });
+      const code = res.data.paymentCode;
+
+      // If this was a pack purchase, credit hours to user's account
+      if (isPack(selectedOption) && !isPackSession && user) {
+        await packsAPI.create({
+          hours: selectedOption.hours,
+          price: selectedOption.price,
+          serviceName: `${selectedService.name} – ${selectedOption.label}`,
+          paymentCode: code,
+        });
+      }
+
+      setBooking({ ...payload, code, userName: form.name, option: selectedOption });
       setStep(5);
     } catch (err) {
       setError(err.response?.data?.error || 'Error al crear la reserva. Intentá de nuevo.');
@@ -324,13 +373,36 @@ export default function Reservations() {
       {/* STEP 1: Opción */}
       {step === 1 && selectedService && (
         <div>
+          {isPackSession && (
+            <div style={{
+              background: 'rgba(0,217,159,0.08)', border: '1px solid rgba(0,217,159,0.25)',
+              borderRadius: 12, padding: '14px 18px', marginBottom: 24,
+              fontSize: 14, color: '#00d99f', display: 'flex', alignItems: 'center', gap: 10,
+            }}>
+              🎟️ <span><strong>Usando horas de tu pack</strong> — elegí cuánto dura la sesión (se descuenta de tu saldo)</span>
+            </div>
+          )}
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>{selectedService.icon} {selectedService.name}</h2>
-          <p style={{ fontSize: 13, color: '#5a6492', marginBottom: 24 }}>Elegí la duración o modalidad:</p>
+          <p style={{ fontSize: 13, color: '#5a6492', marginBottom: 24 }}>
+            {isPackSession ? 'Elegí duración de la sesión (1h o 2h):' : 'Elegí la duración o modalidad:'}
+          </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
-            {selectedService.options.map(opt => (
+            {(isPackSession
+              ? selectedService.options.filter(o => o.hours <= 2)  // pack sessions: 1h or 2h only
+              : selectedService.options
+            ).map(opt => (
               <div key={opt.id}
                 className={`service-card ${selectedOption?.id === opt.id ? 'selected' : ''}`}
-                onClick={() => { setSelectedOption(opt); setStep(isPack(opt) ? 4 : 2); }}
+                onClick={() => {
+                  if (isPack(opt) && !user) {
+                    // Save intent and redirect to register
+                    sessionStorage.setItem('pendingPack', JSON.stringify({ serviceId: selectedService.id, optionId: opt.id }));
+                    navigate('/registro');
+                    return;
+                  }
+                  setSelectedOption(opt);
+                  setStep(isPackSession ? 2 : isPack(opt) ? 4 : 2);
+                }}
                 style={{ padding: 20, position: 'relative' }}
               >
                 {/* Badges: etiqueta + descuento */}
@@ -355,12 +427,20 @@ export default function Reservations() {
                   )}
                 </div>
                 <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>{opt.label}</div>
-                <div className="gradient-text" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
-                  {formatPrice(opt.price)}
-                </div>
-                <div style={{ fontSize: 11, color: '#5a6492', marginTop: 6 }}>
-                  ${(opt.price / opt.hours / 1000).toFixed(0)}k/hora
-                </div>
+                {isPackSession ? (
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#00d99f', marginTop: 4 }}>
+                    Incluido en tu pack
+                  </div>
+                ) : (
+                  <>
+                    <div className="gradient-text" style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-0.5px' }}>
+                      {formatPrice(opt.price)}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#5a6492', marginTop: 6 }}>
+                      ${(opt.price / opt.hours / 1000).toFixed(0)}k/hora
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -569,12 +649,14 @@ export default function Reservations() {
                 ))}
               </div>
               <div style={{ borderTop: '1px solid #1e2347', marginTop: 16, paddingTop: 16, display: 'flex', alignItems: 'baseline', gap: 12 }} className="md:block">
-                <div style={{ fontSize: 11, color: '#5a6492' }} className="md:mb-1">Total a pagar</div>
+                <div style={{ fontSize: 11, color: '#5a6492' }} className="md:mb-1">
+                  {isPackSession ? 'Costo de la sesión' : 'Total a pagar'}
+                </div>
                 <div className="gradient-text" style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-1px', lineHeight: 1 }}>
-                  {selectedOption && formatPrice(selectedOption.price)}
+                  {isPackSession ? 'Pack incluido' : selectedOption && formatPrice(selectedOption.price)}
                 </div>
                 <div style={{ fontSize: 11, color: '#3a4270', marginTop: 4 }} className="hidden md:block">
-                  {isPack(selectedOption) ? 'Abonás al confirmar el pack' : 'Se abona al llegar al estudio'}
+                  {isPackSession ? `Se descuenta de tu saldo (${selectedOption?.hours}h)` : isPack(selectedOption) ? 'Abonás para confirmar el pack' : 'Se abona al llegar al estudio'}
                 </div>
               </div>
             </div>
@@ -675,29 +757,47 @@ export default function Reservations() {
             boxShadow: '0 20px 60px rgba(0,0,0,0.4)',
             overflow: 'hidden',
           }}>
-            {/* Payment banner */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(0,217,159,0.12), rgba(0,153,255,0.08))',
-              borderBottom: '1px solid rgba(0,217,159,0.2)',
-              padding: '20px 28px',
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#5a6492', letterSpacing: '0.15em', marginBottom: 6 }}>
-                TRANSFERÍ EL PAGO PARA CONFIRMAR
-              </div>
-              <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: 12 }}>
-                Enviá <span style={{ fontWeight: 800, color: 'white' }}>{formatPrice(booking.totalPrice)}</span> al alias:
-              </div>
+            {/* Payment banner — hidden for pack sessions (already paid) */}
+            {!isPackSession && (
               <div style={{
-                fontSize: 22, fontWeight: 900, color: '#00d99f', letterSpacing: '0.05em',
-                background: 'rgba(0,217,159,0.1)', border: '1px solid rgba(0,217,159,0.3)',
-                borderRadius: 10, padding: '10px 16px', display: 'inline-block', marginBottom: 10,
+                background: 'linear-gradient(135deg, rgba(0,217,159,0.12), rgba(0,153,255,0.08))',
+                borderBottom: '1px solid rgba(0,217,159,0.2)',
+                padding: '20px 28px',
               }}>
-                envelope.rental
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#5a6492', letterSpacing: '0.15em', marginBottom: 6 }}>
+                  {isPack(booking.option) ? 'TRANSFERÍ EL PAGO PARA ACTIVAR EL PACK' : 'TRANSFERÍ EL PAGO PARA CONFIRMAR'}
+                </div>
+                <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.8)', marginBottom: 12 }}>
+                  Enviá <span style={{ fontWeight: 800, color: 'white' }}>{formatPrice(booking.totalPrice)}</span> al alias:
+                </div>
+                <div style={{
+                  fontSize: 22, fontWeight: 900, color: '#00d99f', letterSpacing: '0.05em',
+                  background: 'rgba(0,217,159,0.1)', border: '1px solid rgba(0,217,159,0.3)',
+                  borderRadius: 10, padding: '10px 16px', display: 'inline-block', marginBottom: 10,
+                }}>
+                  envelope.rental
+                </div>
+                <div style={{ fontSize: 12, color: '#5a6492' }}>
+                  En el concepto escribí tu código: <span style={{ color: '#00d99f', fontWeight: 700 }}>{booking.code}</span>
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: '#5a6492' }}>
-                En el concepto escribí tu código: <span style={{ color: '#00d99f', fontWeight: 700 }}>{booking.code}</span>
+            )}
+            {isPackSession && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(0,217,159,0.12), rgba(0,153,255,0.08))',
+                borderBottom: '1px solid rgba(0,217,159,0.2)',
+                padding: '20px 28px',
+                display: 'flex', alignItems: 'center', gap: 12,
+              }}>
+                <span style={{ fontSize: 28 }}>🎟️</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#00d99f', marginBottom: 4 }}>Sesión descontada de tu pack</div>
+                  <div style={{ fontSize: 13, color: '#5a6492' }}>
+                    {booking.durationHours}h descontadas de tu saldo disponible. Revisalo en tu dashboard.
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
 
             <div style={{ padding: '20px 28px' }}>
               <div style={{ textAlign: 'center', marginBottom: 20 }}>
