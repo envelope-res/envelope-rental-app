@@ -445,19 +445,52 @@ app.post('/api/admin/block-slots', async (req, res) => {
 
 const BASE_URL = process.env.APP_URL || 'https://envelope-rental-app-production.up.railway.app';
 
-app.post('/api/mp/preference', async (req, res) => {
+// Checkout: creates pending reservation + MP preference, returns init_point
+app.post('/api/checkout', async (req, res) => {
   try {
-    const { reservationId, price, description, paymentCode } = req.body;
+    const { userId, serviceType, serviceName, startTime, endTime, durationHours,
+            totalPrice, drinkOrder, guestEmail, notes, isPackPurchase } = req.body;
 
+    // Conflict check for timed sessions
+    if (startTime && endTime) {
+      const conflicts = await dbAll(
+        `SELECT id FROM reservations
+         WHERE status IN ('pending', 'confirmed', 'payment_pending')
+         AND start_time < $1 AND end_time > $2`,
+        [endTime, startTime]
+      );
+      if (conflicts.length > 0) {
+        return res.status(409).json({ error: 'Este horario ya está reservado. Por favor elegí otro turno.' });
+      }
+    }
+
+    // Create reservation as payment_pending
+    const result = await dbRun(
+      `INSERT INTO reservations
+       (user_id, service_type, service_name, start_time, end_time, duration_hours,
+        total_price, drinks_order, guest_email, notes, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'payment_pending') RETURNING id`,
+      [userId || null, serviceType, serviceName, startTime || null, endTime || null,
+       durationHours, totalPrice, drinkOrder || null, guestEmail || null, notes || null]
+    );
+    const reservationId = result.id;
+
+    // If pack purchase: create pack with 0 hours (activated after payment)
+    if (isPackPurchase && userId) {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 180);
+      await dbRun(
+        `INSERT INTO hour_packs (user_id, total_hours, remaining_hours, total_price, expiry_date, service_name, payment_code)
+         VALUES ($1, $2, 0, $3, $4, $5, $6)`,
+        [userId, durationHours, totalPrice, expiry.toISOString(), serviceName, `PENDING-${reservationId}`]
+      );
+    }
+
+    // Create MP preference
     const preference = new Preference(mp);
     const response = await preference.create({
       body: {
-        items: [{
-          title: description,
-          unit_price: Number(price),
-          quantity: 1,
-          currency_id: 'ARS',
-        }],
+        items: [{ title: serviceName, unit_price: Number(totalPrice), quantity: 1, currency_id: 'ARS' }],
         external_reference: String(reservationId),
         statement_descriptor: 'ENVELOPE RENTAL',
         back_urls: {
@@ -470,10 +503,24 @@ app.post('/api/mp/preference', async (req, res) => {
       }
     });
 
-    res.json({ init_point: response.init_point, id: response.id });
+    res.json({ init_point: response.init_point, reservationId });
   } catch (err) {
-    console.error('MP preference error:', err);
+    console.error('Checkout error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Public endpoint: get reservation status + code (for success page polling)
+app.get('/api/reservation/:id', async (req, res) => {
+  try {
+    const r = await dbGet(
+      'SELECT id, service_name, start_time, duration_hours, status, payment_code FROM reservations WHERE id = $1',
+      [req.params.id]
+    );
+    if (!r) return res.status(404).json({ error: 'Reserva no encontrada' });
+    res.json(r);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
   }
 });
 
@@ -486,17 +533,28 @@ app.post('/api/mp/webhook', express.raw({ type: 'application/json' }), async (re
 
       if (paymentData.status === 'approved') {
         const reservationId = paymentData.external_reference;
+        const code = `ENV-${new Date().getFullYear()}-${String(reservationId).padStart(4, '0')}`;
+
+        // Confirm reservation + set payment code
         await dbRun(
-          `UPDATE reservations SET status = 'confirmed' WHERE id = $1`,
-          [reservationId]
+          `UPDATE reservations SET status = 'confirmed', payment_code = $1 WHERE id = $2`,
+          [code, reservationId]
         );
-        console.log(`✅ Reserva ${reservationId} confirmada via MP`);
+
+        // Activate pack if this was a pack purchase
+        await dbRun(
+          `UPDATE hour_packs SET remaining_hours = total_hours, payment_code = $1
+           WHERE payment_code = $2`,
+          [code, `PENDING-${reservationId}`]
+        );
+
+        console.log(`✅ Reserva ${reservationId} confirmada — ${code}`);
       }
     }
     res.sendStatus(200);
   } catch (err) {
     console.error('MP webhook error:', err);
-    res.sendStatus(200); // Always 200 to MP
+    res.sendStatus(200);
   }
 });
 

@@ -12,6 +12,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Admin from './pages/Admin';
+import { PaymentSuccess, PaymentError, PaymentPending } from './pages/PaymentResult';
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
@@ -36,6 +37,9 @@ function AppRoutes() {
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/reservas/pago-ok" element={<PaymentSuccess />} />
+            <Route path="/reservas/pago-error" element={<PaymentError />} />
+            <Route path="/reservas/pago-pendiente" element={<PaymentPending />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

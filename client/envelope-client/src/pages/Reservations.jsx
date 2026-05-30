@@ -242,40 +242,51 @@ export default function Reservations() {
     setError('');
     setSubmitting(true);
     try {
-      const payload = {
+      const serviceName = `${selectedService.name} – ${selectedOption.label}`;
+
+      // Pack session: deduct hours from existing pack, no payment needed
+      if (isPackSession) {
+        const payload = {
+          userId: user?.id || null,
+          serviceType: selectedService.id,
+          serviceName,
+          startTime: selectedTime,
+          endTime: endTime(selectedTime, selectedOption.hours || 1),
+          durationHours: selectedOption.hours || 1,
+          totalPrice: 0,
+          drinkOrder: form.drink !== 'Nada' ? form.drink : null,
+          guestEmail: form.email,
+          notes: form.notes || null,
+          packId: Number(packIdFromUrl),
+        };
+        const res = await reservationsAPI.create(payload);
+        setBooking({ ...payload, code: res.data.paymentCode, userName: form.name, option: selectedOption });
+        setStep(5);
+        return;
+      }
+
+      // Regular booking or pack purchase: redirect to MP checkout
+      const checkoutPayload = {
         userId: user?.id || null,
         serviceType: selectedService.id,
-        serviceName: `${selectedService.name} – ${selectedOption.label}`,
-        startTime: (isPack(selectedOption) && !isPackSession) ? null : selectedTime,
-        endTime: (isPack(selectedOption) && !isPackSession) ? null : endTime(selectedTime, selectedOption.hours || 1),
+        serviceName,
+        startTime: isPack(selectedOption) ? null : selectedTime,
+        endTime: isPack(selectedOption) ? null : endTime(selectedTime, selectedOption.hours || 1),
         durationHours: selectedOption.hours || 1,
-        totalPrice: isPackSession ? 0 : selectedOption.price,
+        totalPrice: selectedOption.price,
         drinkOrder: form.drink !== 'Nada' ? form.drink : null,
         guestEmail: form.email,
         notes: form.notes || null,
-        packId: isPackSession ? Number(packIdFromUrl) : null,
+        isPackPurchase: isPack(selectedOption),
       };
-      const res = await reservationsAPI.create(payload);
-      const code = res.data.paymentCode;
-
-      // If this was a pack purchase, credit hours to user's account
-      if (isPack(selectedOption) && !isPackSession && user) {
-        await packsAPI.create({
-          hours: selectedOption.hours,
-          price: selectedOption.price,
-          serviceName: `${selectedService.name} – ${selectedOption.label}`,
-          paymentCode: code,
-        });
-      }
-
-      setBooking({ ...payload, code, userName: form.name, option: selectedOption });
-      setStep(5);
+      const res = await mpAPI.checkout(checkoutPayload);
+      window.location.href = res.data.init_point;
     } catch (err) {
       const msg = err.response?.data?.error
         || (err.response ? `Error ${err.response.status}` : err.message)
-        || 'Error al crear la reserva. Intentá de nuevo.';
+        || 'Error al procesar la reserva. Intentá de nuevo.';
       setError(msg);
-      console.error('Reservation error:', err.response?.status, err.response?.data, err.message);
+      console.error('Submit error:', err.response?.status, err.response?.data, err.message);
     } finally {
       setSubmitting(false);
     }
@@ -754,7 +765,7 @@ export default function Reservations() {
 
             <button className="btn-primary" onClick={submit} disabled={submitting}
               style={{ marginTop: 28, width: '100%', justifyContent: 'center', padding: '16px', fontSize: 15, opacity: submitting ? 0.7 : 1 }}>
-              {submitting ? 'Procesando...' : 'Confirmar reserva'}
+              {submitting ? 'Procesando...' : isPackSession ? 'Confirmar sesión' : 'Continuar al pago'}
             </button>
           </div>
         </div>

@@ -62,6 +62,8 @@ export const packsAPI = {
 
 export const mpAPI = {
   createPreference: (data) => api.post('/api/mp/preference', data),
+  checkout: (data) => api.post('/api/checkout', data),
+  getReservation: (id) => api.get(`/api/reservation/${id}`),
 };
 
 export const formatPrice = (price) =>
