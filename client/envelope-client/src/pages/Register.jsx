@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { authAPI } from '../services/api';
@@ -38,6 +38,14 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', confirm: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)');
+    const handler = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -115,7 +123,7 @@ export default function Register() {
           <p style={{ fontSize: 14, color: '#5a6492' }}>Empezá a reservar la cabina en minutos</p>
         </div>
 
-        <div style={{
+        <div className="auth-card" style={{
           background: 'rgba(20,24,54,0.9)', border: '1px solid #1e2347',
           borderRadius: 20, padding: '36px 32px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
@@ -143,10 +151,10 @@ export default function Register() {
           </div>
 
           <form onSubmit={submit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 16px' }}>
               {fields.map((f, i) => (
-                <div key={f.name} style={{ marginBottom: 16, gridColumn: i === 0 ? '1 / -1' : (i >= 3 ? '1 / -1' : 'auto') }}>
-                  <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+                <div key={f.name} style={{ marginBottom: 16, gridColumn: isMobile ? '1 / -1' : (i === 0 ? '1 / -1' : (i >= 3 ? '1 / -1' : 'auto')) }}>
+                  <label className="auth-label" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
                     {f.label}
                   </label>
                   <input
@@ -159,7 +167,7 @@ export default function Register() {
               ))}
             </div>
 
-            <button type="submit" className="btn-primary" disabled={loading}
+            <button type="submit" className="btn-primary auth-btn" disabled={loading}
               style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15, marginTop: 8, opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
             </button>

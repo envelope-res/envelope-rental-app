@@ -106,7 +106,7 @@ export default function Login() {
         </div>
 
         {/* Form */}
-        <div style={{
+        <div className="auth-card" style={{
           background: 'rgba(20,24,54,0.9)', border: '1px solid #1e2347',
           borderRadius: 20, padding: '36px 32px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
@@ -134,7 +134,7 @@ export default function Login() {
 
           <form onSubmit={submit}>
             <div style={{ marginBottom: 18 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+              <label className="auth-label" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
                 Email
               </label>
               <input
@@ -145,7 +145,7 @@ export default function Login() {
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
+              <label className="auth-label" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.75)', marginBottom: 8 }}>
                 Contraseña
               </label>
               <input
@@ -155,7 +155,7 @@ export default function Login() {
               />
             </div>
 
-            <button type="submit" className="btn-primary" disabled={loading}
+            <button type="submit" className="btn-primary auth-btn" disabled={loading}
               style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15, opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
