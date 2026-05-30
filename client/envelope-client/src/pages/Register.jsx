@@ -104,22 +104,8 @@ export default function Register() {
       <div className="orb orb-green" style={{ width: 300, height: 300, bottom: 0, left: '10%', position: 'absolute' }} />
 
       <div style={{ width: '100%', maxWidth: 460, position: 'relative', zIndex: 1, animation: 'slideUp 0.5s ease-out' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <Link to="/" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12,
-              background: 'linear-gradient(135deg, #00d99f, #0099ff)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 22, fontWeight: 900, color: 'white',
-              boxShadow: '0 0 20px rgba(0,217,159,0.4)',
-            }}>E</div>
-            <div style={{ textAlign: 'left' }}>
-              <div style={{ fontWeight: 800, fontSize: 18, color: 'white' }}>ENVELOPE</div>
-              <div style={{ fontSize: 10, color: '#5a6492', letterSpacing: '0.15em' }}>RENTAL</div>
-            </div>
-          </Link>
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginTop: 28, marginBottom: 8 }}>Crear cuenta gratis</h1>
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Crear cuenta gratis</h1>
           <p style={{ fontSize: 14, color: '#5a6492' }}>Empezá a reservar la cabina en minutos</p>
         </div>
 
