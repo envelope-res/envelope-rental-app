@@ -105,7 +105,7 @@ export default function Register() {
 
       <div style={{ width: '100%', maxWidth: 460, position: 'relative', zIndex: 1, animation: 'slideUp 0.5s ease-out' }}>
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Crear cuenta gratis</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Crear nueva cuenta</h1>
           <p style={{ fontSize: 14, color: '#5a6492' }}>Empezá a reservar la cabina en minutos</p>
         </div>
 
