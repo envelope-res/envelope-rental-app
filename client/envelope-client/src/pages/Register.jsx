@@ -138,18 +138,6 @@ export default function Register() {
             </div>
           )}
 
-          <GoogleButton
-            onSuccess={handleGoogleSuccess}
-            onError={() => setError('Error al registrarse con Google')}
-            label="Registrarse con Google"
-          />
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-            <div style={{ flex: 1, height: 1, background: '#1e2347' }} />
-            <span style={{ fontSize: 12, color: '#3a4270', whiteSpace: 'nowrap' }}>o registrate con email</span>
-            <div style={{ flex: 1, height: 1, background: '#1e2347' }} />
-          </div>
-
           <form onSubmit={submit}>
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '0 16px' }}>
               {fields.map((f, i) => (
@@ -169,9 +157,21 @@ export default function Register() {
 
             <button type="submit" className="btn-primary auth-btn" disabled={loading}
               style={{ width: '100%', justifyContent: 'center', padding: '14px', fontSize: 15, marginTop: 8, opacity: loading ? 0.7 : 1 }}>
-              {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
+              {loading ? 'Creando cuenta...' : 'Crear cuenta'}
             </button>
           </form>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '20px 0' }}>
+            <div style={{ flex: 1, height: 1, background: '#1e2347' }} />
+            <span style={{ fontSize: 12, color: '#3a4270', whiteSpace: 'nowrap' }}>o registrate con</span>
+            <div style={{ flex: 1, height: 1, background: '#1e2347' }} />
+          </div>
+
+          <GoogleButton
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError('Error al registrarse con Google')}
+            label="Registrarse con Google"
+          />
 
           <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#5a6492' }}>
             ¿Ya tenés cuenta?{' '}
