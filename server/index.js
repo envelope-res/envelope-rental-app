@@ -19,9 +19,15 @@ app.use(express.json());
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
+// Railway internal PostgreSQL connections don't use SSL.
+// Only enable SSL if explicitly required (e.g. external Postgres URL with sslmode).
+const sslConfig = process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require')
+  ? { rejectUnauthorized: false }
+  : false;
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: sslConfig,
 });
 
 const dbRun = async (sql, params = []) => {
