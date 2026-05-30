@@ -45,6 +45,18 @@ const dbAll = async (sql, params = []) => {
   return result.rows;
 };
 
+// Diagnostic endpoint — remove after debugging
+app.get('/api/health', async (req, res) => {
+  const url = process.env.DATABASE_URL || 'NOT SET';
+  const masked = url.replace(/:\/\/[^@]+@/, '://***@');
+  try {
+    await pool.query('SELECT 1');
+    res.json({ db: 'connected', url: masked, ssl: sslConfig });
+  } catch (err) {
+    res.json({ db: 'error', error: err.message, code: err.code, url: masked, ssl: sslConfig });
+  }
+});
+
 async function initDB() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
