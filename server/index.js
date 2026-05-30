@@ -4,7 +4,12 @@ const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 require('dotenv').config();
+
+const mp = new MercadoPagoConfig({
+  accessToken: process.env.MP_ACCESS_TOKEN || '',
+});
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -426,6 +431,65 @@ app.post('/api/admin/block-slots', async (req, res) => {
     res.json({ id: result.id });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ─── Mercado Pago ─────────────────────────────────────────────────────────────
+
+const BASE_URL = process.env.APP_URL || 'https://envelope-rental-app-production.up.railway.app';
+
+app.post('/api/mp/preference', async (req, res) => {
+  try {
+    const { reservationId, price, description, paymentCode } = req.body;
+
+    const preference = new Preference(mp);
+    const response = await preference.create({
+      body: {
+        items: [{
+          title: description,
+          unit_price: Number(price),
+          quantity: 1,
+          currency_id: 'ARS',
+        }],
+        external_reference: String(reservationId),
+        statement_descriptor: 'ENVELOPE RENTAL',
+        back_urls: {
+          success: `${BASE_URL}/reservas/pago-ok`,
+          failure: `${BASE_URL}/reservas/pago-error`,
+          pending: `${BASE_URL}/reservas/pago-pendiente`,
+        },
+        auto_return: 'approved',
+        notification_url: `${BASE_URL}/api/mp/webhook`,
+      }
+    });
+
+    res.json({ init_point: response.init_point, id: response.id });
+  } catch (err) {
+    console.error('MP preference error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/mp/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const { type, data } = req.body;
+    if (type === 'payment' && data?.id) {
+      const payment = new Payment(mp);
+      const paymentData = await payment.get({ id: data.id });
+
+      if (paymentData.status === 'approved') {
+        const reservationId = paymentData.external_reference;
+        await dbRun(
+          `UPDATE reservations SET status = 'confirmed' WHERE id = $1`,
+          [reservationId]
+        );
+        console.log(`✅ Reserva ${reservationId} confirmada via MP`);
+      }
+    }
+    res.sendStatus(200);
+  } catch (err) {
+    console.error('MP webhook error:', err);
+    res.sendStatus(200); // Always 200 to MP
   }
 });
 

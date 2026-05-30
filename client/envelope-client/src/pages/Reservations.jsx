@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { SERVICES, formatPrice, reservationsAPI, packsAPI } from '../services/api';
+import { SERVICES, formatPrice, reservationsAPI, packsAPI, mpAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -185,6 +185,7 @@ export default function Reservations() {
   const [form, setForm] = useState({ name: user?.name || '', phone: '', email: user?.email || '', drink: 'Nada', notes: '' });
   const [booking, setBooking] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [mpLoading, setMpLoading] = useState(false);
   const [error, setError] = useState('');
   const [showUpsell, setShowUpsell] = useState(false);
 
@@ -284,6 +285,24 @@ export default function Reservations() {
     if (!iso) return '';
     const d = new Date(iso);
     return d.toLocaleString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+  };
+
+  const payWithMP = async () => {
+    if (!booking) return;
+    setMpLoading(true);
+    try {
+      const res = await mpAPI.createPreference({
+        reservationId: booking.id,
+        price: booking.totalPrice,
+        description: booking.serviceName,
+        paymentCode: booking.code,
+      });
+      window.location.href = res.data.init_point;
+    } catch (err) {
+      alert('Error al conectar con Mercado Pago. Intentá de nuevo.');
+    } finally {
+      setMpLoading(false);
+    }
   };
 
   const reset = () => {
@@ -836,12 +855,30 @@ export default function Reservations() {
           </div>
 
           <div style={{ marginTop: 36, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            {/* Mercado Pago — only for paid bookings */}
+            {!isPackSession && booking.totalPrice > 0 && (
+              <button
+                onClick={payWithMP}
+                disabled={mpLoading}
+                style={{
+                  width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15,
+                  fontWeight: 700, borderRadius: 10, border: 'none', cursor: mpLoading ? 'not-allowed' : 'pointer',
+                  background: mpLoading ? '#ccc' : '#009ee3', color: 'white',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  transition: 'opacity 0.2s', opacity: mpLoading ? 0.7 : 1,
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1.41 16.09V20h-2.67v-1.93c-1.71-.36-3.16-1.46-3.27-3.4h1.96c.1 1.05.82 1.87 2.65 1.87 1.96 0 2.4-.98 2.4-1.59 0-.83-.44-1.61-2.67-2.14-2.48-.6-4.18-1.62-4.18-3.67 0-1.72 1.39-2.84 3.11-3.21V4h2.67v1.95c1.86.45 2.79 1.86 2.85 3.39H14.3c-.05-1.11-.64-1.87-2.22-1.87-1.5 0-2.4.68-2.4 1.64 0 .84.65 1.39 2.67 1.91s4.18 1.39 4.18 3.91c-.01 1.83-1.38 2.83-3.12 3.16z"/></svg>
+                {mpLoading ? 'Redirigiendo...' : 'Pagar con Mercado Pago'}
+              </button>
+            )}
+
             {isPack(booking.option) ? (
               <>
                 <a
                   href={`https://wa.me/543536568980?text=Hola! Compré el ${booking.serviceName} en Envelope Rental. Código: ${booking.code}. Quiero coordinar mis sesiones.`}
                   target="_blank" rel="noopener noreferrer"
-                  className="btn-primary"
+                  className={isPackSession ? 'btn-primary' : 'btn-secondary'}
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
                   Coordinar sesiones por WhatsApp
@@ -862,7 +899,7 @@ export default function Reservations() {
                     return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}&location=${location}`;
                   })()}
                   target="_blank" rel="noopener noreferrer"
-                  className="btn-primary"
+                  className="btn-ghost"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
                   Agregar a mi calendario
@@ -870,7 +907,7 @@ export default function Reservations() {
                 <a
                   href={`https://wa.me/543536568980?text=Hola! Hice una reserva en Envelope Rental. Código: ${booking.code}. Servicio: ${booking.serviceName}.`}
                   target="_blank" rel="noopener noreferrer"
-                  className="btn-secondary"
+                  className="btn-ghost"
                   style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'center', width: '100%', maxWidth: 340, padding: '14px 24px', fontSize: 15 }}
                 >
                   Confirmar por WhatsApp

@@ -60,6 +60,10 @@ export const packsAPI = {
   create: (data) => api.post('/api/hour-packs', data),
 };
 
+export const mpAPI = {
+  createPreference: (data) => api.post('/api/mp/preference', data),
+};
+
 export const formatPrice = (price) =>
   `$${Number(price).toLocaleString('es-CL')}`;
 
