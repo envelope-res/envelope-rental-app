@@ -150,7 +150,7 @@ app.post('/api/auth/google', async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret');
     res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -165,7 +165,7 @@ app.post('/api/auth/register', async (req, res) => {
     const token = jwt.sign({ id: result.id }, process.env.JWT_SECRET || 'secret');
     res.json({ token, user: { id: result.id, email, name } });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -179,7 +179,7 @@ app.post('/api/auth/login', async (req, res) => {
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret');
     res.json({ token, user: { id: user.id, email, name: user.name } });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -238,7 +238,7 @@ app.post('/api/reservations', async (req, res) => {
 
     res.json({ id: result.id, paymentCode: code });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -250,7 +250,7 @@ app.get('/api/reservations', verifyToken, async (req, res) => {
     );
     res.json(reservations);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -261,7 +261,7 @@ app.get('/api/admin/reservations', async (req, res) => {
     );
     res.json(reservations);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -299,7 +299,7 @@ app.get('/api/available-slots', async (req, res) => {
 
     res.json(slots);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -317,7 +317,7 @@ app.post('/api/hour-packs', verifyToken, async (req, res) => {
     );
     res.json({ id: result.id });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -329,7 +329,7 @@ app.get('/api/hour-packs', verifyToken, async (req, res) => {
     );
     res.json(packs);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -342,7 +342,7 @@ app.get('/api/admin/hour-packs', async (req, res) => {
     );
     res.json(packs);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -358,7 +358,7 @@ app.post('/api/events', verifyToken, async (req, res) => {
     );
     res.json({ id: result.id });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -374,7 +374,7 @@ app.get('/api/events', async (req, res) => {
     );
     res.json(events);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -385,7 +385,7 @@ app.get('/api/recorded-sets', async (req, res) => {
     const sets = await dbAll('SELECT * FROM recorded_sets ORDER BY created_at DESC');
     res.json(sets);
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -399,7 +399,7 @@ app.post('/api/recorded-sets', async (req, res) => {
     );
     res.json({ id: result.id });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -417,7 +417,7 @@ app.patch('/api/admin/reservations/:id/status', async (req, res) => {
     if (result.changes === 0) return res.status(404).json({ error: 'Reserva no encontrada' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
@@ -430,7 +430,7 @@ app.post('/api/admin/block-slots', async (req, res) => {
     );
     res.json({ id: result.id });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
