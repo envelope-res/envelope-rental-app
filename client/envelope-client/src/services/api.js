@@ -1,9 +1,8 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.NODE_ENV === 'production'
-    ? ''  // same origin in production (Express serves the build)
-    : `http://${window.location.hostname}:5000`,
+  baseURL: process.env.REACT_APP_API_URL ||
+    (process.env.NODE_ENV === 'production' ? '' : `http://${window.location.hostname}:5000`),
   timeout: 10000,
 });
 
