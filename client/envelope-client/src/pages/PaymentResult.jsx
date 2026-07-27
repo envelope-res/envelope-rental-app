@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { mpAPI, formatPrice } from '../services/api';
+import { mpAPI } from '../services/api';
 
 function usePollingReservation(id, enabled) {
   const [reservation, setReservation] = useState(null);

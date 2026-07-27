@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { SERVICES, formatPrice, reservationsAPI, packsAPI, mpAPI } from '../services/api';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { SERVICES, formatPrice, reservationsAPI, mpAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
@@ -224,6 +224,7 @@ export default function Reservations() {
         (selectedOption?.id === 'cabin-1h' || selectedOption?.id === 'cabin-2h')) {
       setShowUpsell(true);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
