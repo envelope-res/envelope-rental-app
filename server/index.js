@@ -4,6 +4,7 @@ const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { MercadoPagoConfig, Preference, Payment } = require('mercadopago');
 require('dotenv').config();
 
@@ -19,6 +20,16 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
+
+const verifyAdmin = (req, res, next) => {
+  const key = req.headers['x-admin-key'];
+  if (!key || key !== process.env.ADMIN_SECRET) return res.status(403).json({ error: 'Acceso denegado' });
+  next();
+};
+
+app.get('/api/ping', (req, res) => res.json({ ok: true }));
 
 // ─── Database ────────────────────────────────────────────────────────────────
 
@@ -139,7 +150,7 @@ pool.connect()
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
-app.post('/api/auth/google', async (req, res) => {
+app.post('/api/auth/google', authLimiter, async (req, res) => {
   try {
     const { accessToken } = req.body;
     if (!accessToken) return res.status(400).json({ error: 'Token requerido' });
@@ -157,14 +168,14 @@ app.post('/api/auth/google', async (req, res) => {
       user = { id: result.id, email: googleUser.email, name: googleUser.name };
     }
 
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret');
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
   } catch (err) {
     console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { email, password, name, phone } = req.body;
     const hashedPassword = bcrypt.hashSync(password, 10);
@@ -172,21 +183,21 @@ app.post('/api/auth/register', async (req, res) => {
       'INSERT INTO users (email, password, name, phone) VALUES ($1, $2, $3, $4) RETURNING id',
       [email, hashedPassword, name, phone]
     );
-    const token = jwt.sign({ id: result.id }, process.env.JWT_SECRET || 'secret');
+    const token = jwt.sign({ id: result.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ token, user: { id: result.id, email, name } });
   } catch (err) {
     console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await dbGet('SELECT * FROM users WHERE email = $1', [email]);
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret');
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
     res.json({ token, user: { id: user.id, email, name: user.name } });
   } catch (err) {
     console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
@@ -214,6 +225,9 @@ app.post('/api/reservations', async (req, res) => {
     if (packId) {
       const pack = await dbGet('SELECT * FROM hour_packs WHERE id = $1', [packId]);
       if (!pack) return res.status(404).json({ error: 'Pack no encontrado.' });
+      if (pack.expiry_date && new Date(pack.expiry_date) < new Date()) {
+        return res.status(400).json({ error: 'Este pack de horas está vencido.' });
+      }
       if (pack.remaining_hours < durationHours) {
         return res.status(400).json({ error: `Horas insuficientes en el pack. Disponibles: ${pack.remaining_hours}h` });
       }
@@ -264,7 +278,7 @@ app.get('/api/reservations', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/reservations', async (req, res) => {
+app.get('/api/admin/reservations', verifyAdmin, async (req, res) => {
   try {
     const reservations = await dbAll(
       'SELECT r.*, u.email, u.name FROM reservations r LEFT JOIN users u ON r.user_id = u.id ORDER BY r.start_time DESC'
@@ -272,6 +286,29 @@ app.get('/api/admin/reservations', async (req, res) => {
     res.json(reservations);
   } catch (err) {
     console.error("API Error:", err); res.status(400).json({ error: err.message || err.toString(), code: err.code, detail: err.detail });
+  }
+});
+
+app.patch('/api/reservations/:id/cancel', verifyToken, async (req, res) => {
+  try {
+    const reservation = await dbGet(
+      'SELECT * FROM reservations WHERE id = $1 AND user_id = $2',
+      [req.params.id, req.userId]
+    );
+    if (!reservation) return res.status(404).json({ error: 'Reserva no encontrada' });
+    if (!['pending', 'payment_pending'].includes(reservation.status)) {
+      return res.status(400).json({ error: 'Solo se pueden cancelar reservas pendientes' });
+    }
+    await dbRun('UPDATE reservations SET status = $1 WHERE id = $2', ['cancelled', req.params.id]);
+    if (reservation.pack_id) {
+      await dbRun(
+        'UPDATE hour_packs SET remaining_hours = remaining_hours + $1 WHERE id = $2',
+        [reservation.duration_hours, reservation.pack_id]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("API Error:", err); res.status(400).json({ error: err.message });
   }
 });
 
@@ -343,7 +380,7 @@ app.get('/api/hour-packs', verifyToken, async (req, res) => {
   }
 });
 
-app.get('/api/admin/hour-packs', async (req, res) => {
+app.get('/api/admin/hour-packs', verifyAdmin, async (req, res) => {
   try {
     const packs = await dbAll(
       `SELECT hp.*, u.name, u.email FROM hour_packs hp
@@ -415,7 +452,7 @@ app.post('/api/recorded-sets', async (req, res) => {
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
-app.patch('/api/admin/reservations/:id/status', async (req, res) => {
+app.patch('/api/admin/reservations/:id/status', verifyAdmin, async (req, res) => {
   try {
     const { status } = req.body;
     const valid = ['pending', 'confirmed', 'cancelled', 'completed'];
@@ -431,7 +468,7 @@ app.patch('/api/admin/reservations/:id/status', async (req, res) => {
   }
 });
 
-app.post('/api/admin/block-slots', async (req, res) => {
+app.post('/api/admin/block-slots', verifyAdmin, async (req, res) => {
   try {
     const { startTime, endTime, reason } = req.body;
     const result = await dbRun(
@@ -446,7 +483,7 @@ app.post('/api/admin/block-slots', async (req, res) => {
 
 // ─── Mercado Pago ─────────────────────────────────────────────────────────────
 
-const BASE_URL = process.env.APP_URL || 'https://envelope-rental-app-production.up.railway.app';
+const BASE_URL = process.env.APP_URL || 'https://envelope-rental-app.onrender.com';
 
 // Checkout: creates pending reservation + MP preference, returns init_point
 app.post('/api/checkout', async (req, res) => {
@@ -527,9 +564,10 @@ app.get('/api/reservation/:id', async (req, res) => {
   }
 });
 
-app.post('/api/mp/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+app.post('/api/mp/webhook', async (req, res) => {
   try {
-    const { type, data } = req.body;
+    const body = Buffer.isBuffer(req.body) ? JSON.parse(req.body.toString()) : req.body;
+    const { type, data } = body;
     if (type === 'payment' && data?.id) {
       const payment = new Payment(mp);
       const paymentData = await payment.get({ id: data.id });

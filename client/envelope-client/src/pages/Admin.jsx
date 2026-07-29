@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { adminAPI, formatPrice } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
 
-const ADMIN_PIN = 'envelope2024';
+const ADMIN_PIN = process.env.REACT_APP_ADMIN_KEY || 'envelope2024';
 
 export default function Admin() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('admin_unlocked') === '1');
@@ -21,6 +21,7 @@ export default function Admin() {
   const unlock = () => {
     if (pin === ADMIN_PIN) {
       sessionStorage.setItem('admin_unlocked', '1');
+      sessionStorage.setItem('admin_key', pin);
       setUnlocked(true);
     } else {
       setPinError('PIN incorrecto');

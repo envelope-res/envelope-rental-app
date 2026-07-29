@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { reservationsAPI, packsAPI, formatPrice } from '../services/api';
+
 import StatusBadge from '../components/StatusBadge';
 
 export default function Dashboard() {
@@ -10,6 +11,7 @@ export default function Dashboard() {
   const [packs, setPacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('reservations');
+  const [cancelling, setCancelling] = useState(null);
 
   useEffect(() => {
     Promise.all([reservationsAPI.getMine(), packsAPI.getMine()])
@@ -20,6 +22,20 @@ export default function Dashboard() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const cancelReservation = async (id) => {
+    if (!window.confirm('¿Cancelar esta reserva?')) return;
+    setCancelling(id);
+    try {
+      await reservationsAPI.cancel(id);
+      const [rRes] = await Promise.all([reservationsAPI.getMine()]);
+      setReservations(rRes.data);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al cancelar');
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   const upcoming = reservations.filter(r => new Date(r.start_time) > new Date());
   const past = reservations.filter(r => new Date(r.start_time) <= new Date());
@@ -127,6 +143,15 @@ export default function Dashboard() {
                           <div style={{ fontSize: 16, fontWeight: 800, color: '#00d99f' }}>
                             {formatPrice(r.total_price)}
                           </div>
+                          {['pending', 'payment_pending'].includes(r.status) && (
+                            <button
+                              onClick={() => cancelReservation(r.id)}
+                              disabled={cancelling === r.id}
+                              style={{ fontSize: 12, color: '#ef4444', background: 'transparent', border: '1px solid #ef444440', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}
+                            >
+                              {cancelling === r.id ? 'Cancelando...' : 'Cancelar'}
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}

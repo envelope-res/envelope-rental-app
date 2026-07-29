@@ -34,6 +34,7 @@ export const reservationsAPI = {
   getMine: () => api.get('/api/reservations'),
   getAll: () => api.get('/api/admin/reservations'),
   getAvailableSlots: (date) => api.get(`/api/available-slots?date=${date}`),
+  cancel: (id) => api.patch(`/api/reservations/${id}/cancel`),
 };
 
 export const eventsAPI = {
@@ -46,11 +47,15 @@ export const setsAPI = {
   create: (data) => api.post('/api/recorded-sets', data),
 };
 
+const adminHeaders = () => ({
+  headers: { 'x-admin-key': sessionStorage.getItem('admin_key') || '' },
+});
+
 export const adminAPI = {
-  blockSlot: (data) => api.post('/api/admin/block-slots', data),
-  getAllReservations: () => api.get('/api/admin/reservations'),
-  updateStatus: (id, status) => api.patch(`/api/admin/reservations/${id}/status`, { status }),
-  getHourPacks: () => api.get('/api/admin/hour-packs'),
+  blockSlot: (data) => api.post('/api/admin/block-slots', data, adminHeaders()),
+  getAllReservations: () => api.get('/api/admin/reservations', adminHeaders()),
+  updateStatus: (id, status) => api.patch(`/api/admin/reservations/${id}/status`, { status }, adminHeaders()),
+  getHourPacks: () => api.get('/api/admin/hour-packs', adminHeaders()),
 };
 
 export const packsAPI = {
